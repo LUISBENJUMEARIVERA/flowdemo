@@ -60,7 +60,7 @@ app.post('/api/verify-key', async (req, res) => {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+    const ai = new GoogleGenAI({ apiKey: apiKey.trim(), apiVersion: 'v1beta' });
     await ai.interactions.create({
       model: 'gemini-4-hydrogen',
       input: 'Responde únicamente: OK',

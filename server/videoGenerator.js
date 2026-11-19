@@ -105,6 +105,7 @@ export async function runVideoGenerationJob({
 
   const ai = new GoogleGenAI({
     apiKey,
+    apiVersion: 'v1beta',
     httpOptions: { timeout: 600_000 }, // 10 minutes per request
   });
 
