@@ -2,45 +2,83 @@ import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, Download, SkipForward, RotateCcw, Film, Shield } from 'lucide-react';
 
 export default function TimelinePlayer({ scenes, plan }) {
-  const videoRef = useRef(null);
+  const videoARef = useRef(null);
+  const videoBRef = useRef(null);
+  const [activeSlot, setActiveSlot] = useState('A'); // 'A' | 'B'
   const [activeIdx, setActiveIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
   const currentScene = scenes[activeIdx] || null;
+  const nextScene = scenes[activeIdx + 1] || null;
 
   useEffect(() => {
     setActiveIdx(0);
+    setActiveSlot('A');
     setIsPlaying(false);
   }, [scenes.length]);
 
+  // Load current scene into active slot and preload next scene into standby slot
   useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !currentScene) return;
-    el.src = currentScene.videoUrl;
-    el.load();
-    if (isPlaying) {
-      el.play().catch(() => {});
-    }
-  }, [activeIdx, currentScene?.videoUrl]);
+    const activeEl = activeSlot === 'A' ? videoARef.current : videoBRef.current;
+    const standbyEl = activeSlot === 'A' ? videoBRef.current : videoARef.current;
 
-  const handleEnded = () => {
+    if (activeEl && currentScene) {
+      const targetUrl = new URL(currentScene.videoUrl, window.location.origin).href;
+      if (activeEl.src !== targetUrl) {
+        activeEl.src = currentScene.videoUrl;
+        activeEl.load();
+      }
+      if (isPlaying && activeEl.paused) {
+        activeEl.play().catch(() => {});
+      }
+    }
+
+    if (standbyEl) {
+      if (nextScene) {
+        const nextUrl = new URL(nextScene.videoUrl, window.location.origin).href;
+        if (standbyEl.src !== nextUrl) {
+          standbyEl.src = nextScene.videoUrl;
+          standbyEl.preload = 'auto';
+          standbyEl.load();
+        }
+      } else {
+        standbyEl.removeAttribute('src');
+        standbyEl.load();
+      }
+    }
+  }, [activeIdx, activeSlot, currentScene?.videoUrl, nextScene?.videoUrl]);
+
+  const handleEnded = (slot) => {
+    if (slot !== activeSlot) return;
     if (activeIdx < scenes.length - 1) {
+      const nextSlot = activeSlot === 'A' ? 'B' : 'A';
+      const nextEl = nextSlot === 'A' ? videoARef.current : videoBRef.current;
+      setActiveSlot(nextSlot);
       setActiveIdx((i) => i + 1);
       setIsPlaying(true);
+      if (nextEl) {
+        nextEl.currentTime = 0;
+        nextEl.play().catch(() => {});
+      }
     } else {
       setIsPlaying(false);
     }
   };
 
   const togglePlay = () => {
-    const el = videoRef.current;
-    if (!el) return;
-    if (el.paused) {
-      el.play().then(() => setIsPlaying(true)).catch(() => {});
+    const activeEl = activeSlot === 'A' ? videoARef.current : videoBRef.current;
+    if (!activeEl) return;
+    if (activeEl.paused) {
+      activeEl.play().then(() => setIsPlaying(true)).catch(() => {});
     } else {
-      el.pause();
+      activeEl.pause();
       setIsPlaying(false);
     }
+  };
+
+  const jumpToScene = (idx) => {
+    setActiveIdx(idx);
+    setIsPlaying(true);
   };
 
   const totalDuration = scenes.reduce((acc, s) => acc + s.duration, 0);
@@ -59,7 +97,7 @@ export default function TimelinePlayer({ scenes, plan }) {
               Reproductor Continuo Multi-Escena ({totalDuration}s totales)
             </h2>
             <p className="text-xs text-zinc-400">
-              Reproducción automática encadenada de las {scenes.length} escena(s) generadas.
+              Doble búfer precargado para transición fluida entre las {scenes.length} escena(s) generadas.
             </p>
           </div>
         </div>
@@ -77,7 +115,7 @@ export default function TimelinePlayer({ scenes, plan }) {
           {scenes.length > 1 && (
             <button
               type="button"
-              onClick={() => setActiveIdx((i) => (i + 1) % scenes.length)}
+              onClick={() => jumpToScene((activeIdx + 1) % scenes.length)}
               className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs flex items-center gap-1.5 border border-zinc-700 cursor-pointer"
             >
               <SkipForward className="w-3.5 h-3.5" />
@@ -87,10 +125,7 @@ export default function TimelinePlayer({ scenes, plan }) {
 
           <button
             type="button"
-            onClick={() => {
-              setActiveIdx(0);
-              setIsPlaying(true);
-            }}
+            onClick={() => jumpToScene(0)}
             className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 cursor-pointer"
             title="Reiniciar desde Escena 1"
           >
@@ -99,19 +134,32 @@ export default function TimelinePlayer({ scenes, plan }) {
         </div>
       </div>
 
-      {/* Main Video Viewport */}
+      {/* Double-buffered Video Viewport */}
       <div className="relative rounded-xl overflow-hidden bg-black border border-zinc-800 aspect-video flex items-center justify-center">
         <video
-          ref={videoRef}
-          controls
+          ref={videoARef}
+          controls={activeSlot === 'A'}
           playsInline
-          onEnded={handleEnded}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          className="w-full h-full object-contain"
+          onEnded={() => handleEnded('A')}
+          onPlay={() => activeSlot === 'A' && setIsPlaying(true)}
+          onPause={() => activeSlot === 'A' && setIsPlaying(false)}
+          className={`absolute inset-0 w-full h-full object-contain ${
+            activeSlot === 'A' ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'
+          }`}
+        />
+        <video
+          ref={videoBRef}
+          controls={activeSlot === 'B'}
+          playsInline
+          onEnded={() => handleEnded('B')}
+          onPlay={() => activeSlot === 'B' && setIsPlaying(true)}
+          onPause={() => activeSlot === 'B' && setIsPlaying(false)}
+          className={`absolute inset-0 w-full h-full object-contain ${
+            activeSlot === 'B' ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'
+          }`}
         />
         {currentScene && (
-          <div className="absolute top-3 left-3 px-2.5 py-1 rounded bg-black/75 backdrop-blur border border-zinc-700/80 font-mono text-[11px] text-[#d4ff00] pointer-events-none">
+          <div className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded bg-black/75 backdrop-blur border border-zinc-700/80 font-mono text-[11px] text-[#d4ff00] pointer-events-none">
             ESCENA {currentScene.index}/{scenes.length} · {currentScene.startSec}s–{currentScene.endSec}s ({currentScene.duration}s)
           </div>
         )}
@@ -132,10 +180,7 @@ export default function TimelinePlayer({ scenes, plan }) {
             >
               <button
                 type="button"
-                onClick={() => {
-                  setActiveIdx(idx);
-                  setIsPlaying(true);
-                }}
+                onClick={() => jumpToScene(idx)}
                 className="text-left flex flex-col gap-1 cursor-pointer"
               >
                 <div className="flex items-center justify-between">

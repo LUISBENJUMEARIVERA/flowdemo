@@ -124,8 +124,8 @@ export async function planScenesWithGemini({
           scene_number: 1,
           visual_prompt:
             `Use the first image as the environment/background reference and the second image as the person/character reference rather than literal starting frames. ` +
-            `The person from the second image is inside the setting from the first image: ${userPrompt}. ` +
-            `Keep the person's facial identity, hairstyle, and clothing completely faithful to the second image, and keep the lighting and environment faithful to the first image.`,
+            `Generate a true, photorealistic, fluid live-action video (NOT a static image overlay, cutout, or slideshow): the person from the second image is physically integrated inside the 3D space of the setting from the first image with natural shadows, matching ambient lighting, realistic body and facial motion, and smooth cinematic camera movement: ${userPrompt}. ` +
+            `Keep the person's facial identity, hairstyle, and clothing completely faithful to the second image, and keep the environment faithful to the first image.`,
           transition_note: 'Escena única continua.',
         },
       ],
@@ -156,7 +156,7 @@ Analyze both images carefully and return ONLY valid JSON (no markdown fences) wi
   "scenes": [
     {
       "scene_number": 1,
-      "visual_prompt": "Detailed prompt in English for Gemini Omni 1.2 Flash. For scene 1 (r2v_base) or chapter_bridge, explicitly state: 'Use the first image as the environment/background reference and the second image as the person/character reference rather than literal starting frames.' For extend_chain scenes, start with 'Extend this video seamlessly.' and describe how the action, camera, and audio continue while keeping the exact character and background from the reference images.",
+      "visual_prompt": "Detailed prompt in English for Gemini Omni 1.2 Flash. Must produce a true, fluid, photorealistic live-action video with natural physics, shadows, lighting integration, and smooth camera motion (NEVER a flat photo overlay, cutout, or static pan). For scene 1 (r2v_base) or chapter_bridge, explicitly state: 'Use the first image as the environment/background reference and the second image as the person/character reference rather than literal starting frames.' For extend_chain scenes, start with 'Extend this video seamlessly in one continuous fluid motion.' and describe how the action, camera, and audio continue naturally while keeping the exact character and background from the reference images.",
       "transition_note": "Short 1-sentence Spanish summary of what happens in this scene for the user UI."
     }
   ]
@@ -206,8 +206,8 @@ function buildFallbackPlan(userPrompt, schedule) {
           scene_number: s.index,
           visual_prompt:
             `Use the first image as the environment/background reference and the second image as the person/character reference rather than literal starting frames. ` +
-            `Opening scene (${s.duration}s): ${userPrompt}. Keep the person's identity and outfit identical to the second image and the setting identical to the first image.`,
-          transition_note: `Escena inicial (${s.duration}s): establece el personaje y el entorno.`,
+            `Generate a true, photorealistic, fluid live-action video (NOT a static image overlay or cutout) with natural lighting, shadows, and smooth camera motion. Opening scene (${s.duration}s): ${userPrompt}. Keep the person's identity and outfit identical to the second image and the setting identical to the first image.`,
+          transition_note: `Escena inicial (${s.duration}s): integración fluida de personaje y entorno.`,
         };
       }
       if (s.mode === 'chapter_bridge') {
@@ -215,17 +215,17 @@ function buildFallbackPlan(userPrompt, schedule) {
           scene_number: s.index,
           visual_prompt:
             `Use the first image as the environment/background reference and the second image as the person/character reference rather than literal starting frames. ` +
-            `Continuing the narrative seamlessly (${s.duration}s, part ${idx + 1} of ${schedule.length}): ${userPrompt}. Maintain exact character appearance, clothing, and lighting continuity.`,
-          transition_note: `Nuevo capítulo (${s.duration}s): mantiene consistencia de personaje y fondo.`,
+            `Generate a true, fluid live-action video continuing the narrative seamlessly (${s.duration}s, part ${idx + 1} of ${schedule.length}): ${userPrompt}. Maintain exact character appearance, clothing, natural motion, and lighting continuity.`,
+          transition_note: `Nuevo capítulo (${s.duration}s): continuidad fluida de personaje y fondo.`,
         };
       }
       return {
         scene_number: s.index,
         visual_prompt:
-          `Extend this video seamlessly (${s.duration}s continuation, part ${idx + 1} of ${schedule.length}). ` +
-          `Keep the exact same person from the second reference image and the exact same environment from the first reference image. ` +
+          `Extend this video seamlessly in one continuous fluid motion (${s.duration}s continuation, part ${idx + 1} of ${schedule.length}). ` +
+          `Keep the exact same person from the second reference image and the exact same environment from the first reference image with natural physics and lighting. ` +
           `Continue the action naturally: ${userPrompt}. Smooth camera motion and continuous audio.`,
-        transition_note: `Extensión continua (+${s.duration}s): prolonga la acción manteniendo la escena.`,
+        transition_note: `Extensión continua (+${s.duration}s): movimiento fluido sin cortes.`,
       };
     }),
   };
